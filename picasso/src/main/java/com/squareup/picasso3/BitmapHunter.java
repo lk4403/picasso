@@ -110,11 +110,6 @@ class BitmapHunter implements Runnable {
       } else {
         dispatcher.dispatchComplete(this);
       }
-    } catch (NetworkRequestHandler.ResponseException e) {
-      if (!NetworkPolicy.isOfflineOnly(e.networkPolicy) || e.code != 504) {
-        exception = e;
-      }
-      dispatcher.dispatchFailed(this);
     } catch (IOException e) {
       exception = e;
       dispatcher.dispatchRetry(this);
@@ -418,29 +413,13 @@ class BitmapHunter implements Runnable {
         return null;
       }
 
-      Bitmap bitmap = result.getBitmap();
-      if (bitmap == null) return result;
-
-      if (newResult == result && bitmap.isRecycled()) {
+      Bitmap bitmap = newResult.getBitmap();
+      if (bitmap != null && bitmap.isRecycled()) {
         Picasso.HANDLER.post(new Runnable() {
           @Override public void run() {
             throw new IllegalStateException("Transformation "
                 + transformation.key()
-                + " returned input Bitmap but recycled it.");
-          }
-        });
-        return null;
-      }
-
-      // If the transformation returned a new bitmap ensure they recycled the original.
-      if (newResult != result
-          && newResult.getBitmap() != bitmap
-          && !bitmap.isRecycled()) {
-        Picasso.HANDLER.post(new Runnable() {
-          @Override public void run() {
-            throw new IllegalStateException("Transformation "
-                + transformation.key()
-                + " mutated input Bitmap but failed to recycle the original.");
+                + " returned a recycled Bitmap.");
           }
         });
         return null;
